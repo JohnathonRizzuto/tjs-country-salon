@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TJ's Country Salon &mdash; Somonauk, IL</title>
+  <meta name="description" content="TJ's Country Salon in Somonauk, IL. 22 years of haircuts, color, and styling for women, men, and kids. Call (815) 498-4604." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #fbf6f2;
+      --paper: #ffffff;
+      --surface: #f4eae0;
+      --line: #ead9c8;
+      --ink: #3a2a30;
+      --ink-soft: #6e5860;
+      --ink-dim: #a08e93;
+      --rose: #b48282;
+      --rose-deep: #8a5b5b;
+      --accent: #8a5b5b;
+      --gold: #c8a96a;
+      --shadow: 0 8px 24px rgba(58, 42, 48, 0.10);
+      --shadow-lift: 0 16px 40px rgba(58, 42, 48, 0.16);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Manrope', sans-serif; color: var(--ink); background: var(--bg); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    h1, h2, h3 { font-family: 'Cormorant Garamond', serif; font-weight: 600; line-height: 1.1; letter-spacing: -0.005em; }
+    h1 em, h2 em, h3 em { font-style: italic; font-weight: 400; color: var(--rose-deep); }
+
+    header { position: sticky; top: 0; z-index: 100; background: rgba(251, 246, 242, 0.94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+    .nav { max-width: 1200px; margin: 0 auto; padding: 1.1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .logo { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 1.55rem; letter-spacing: 0.01em; }
+    .logo em { color: var(--rose-deep); font-style: italic; font-weight: 400; }
+    .nav-call { padding: 0.7rem 1.4rem; border-radius: 999px; background: var(--rose-deep); color: var(--paper); text-decoration: none; font-weight: 600; font-size: 0.95rem; letter-spacing: 0.04em; box-shadow: 0 4px 14px rgba(138, 91, 91, 0.25); transition: transform 0.15s ease, background 0.15s; }
+    .nav-call:hover { background: var(--ink); transform: translateY(-1px); }
+
+    .hero { padding: 5rem 1.5rem 6rem; background: radial-gradient(ellipse 65% 50% at 80% 30%, rgba(200, 169, 106, 0.14), transparent 70%), var(--bg); }
+    .hero-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 4rem; align-items: center; }
+    .hero-eyebrow { display: inline-block; padding: 0.4rem 1.1rem; background: rgba(180, 130, 130, 0.12); color: var(--rose-deep); border: 1px solid rgba(180, 130, 130, 0.25); border-radius: 999px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1.5rem; }
+    .hero h1 { font-size: clamp(3rem, 6vw, 5rem); margin-bottom: 1.4rem; }
+    .hero-tagline { font-size: 1.2rem; color: var(--ink-soft); margin-bottom: 2.5rem; max-width: 32rem; }
+    .hero-ctas { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2.5rem; }
+    .btn-primary { display: inline-flex; align-items: center; padding: 1.2rem 2.4rem; border-radius: 999px; background: var(--rose-deep); color: var(--paper); text-decoration: none; font-weight: 700; font-size: 1.08rem; letter-spacing: 0.03em; box-shadow: 0 8px 24px rgba(138, 91, 91, 0.3); transition: transform 0.15s ease, background 0.15s; animation: pulse-rose 2.5s ease-in-out infinite; }
+    @keyframes pulse-rose { 0%,100% { box-shadow: 0 8px 24px rgba(138, 91, 91, 0.30); } 50% { box-shadow: 0 8px 36px rgba(138, 91, 91, 0.50); } }
+    .btn-primary:hover { background: var(--ink); transform: translateY(-3px); animation: none; }
+    .btn-outline { display: inline-flex; align-items: center; padding: 1.1rem 2rem; border-radius: 999px; border: 1.5px solid var(--ink); color: var(--ink); text-decoration: none; font-weight: 600; font-size: 1rem; transition: background 0.15s, color 0.15s; }
+    .btn-outline:hover { background: var(--ink); color: var(--paper); }
+    .hero-meta { display: flex; gap: 2.5rem; flex-wrap: wrap; padding-top: 1.8rem; border-top: 1.5px solid var(--line); color: var(--ink-soft); font-size: 0.95rem; }
+    .hero-meta-item strong { color: var(--ink); font-weight: 700; }
+    .hero-photo { border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lift); aspect-ratio: 4/5; transform: rotate(-1.5deg); }
+    .hero-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+    section { padding: 5rem 1.5rem; }
+    .wrap { max-width: 1200px; margin: 0 auto; }
+    .section-head { text-align: center; margin-bottom: 3.5rem; }
+    .section-head .eyebrow { display: inline-block; color: var(--rose-deep); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 0.8rem; }
+    .section-head h2 { font-size: clamp(2.4rem, 4.5vw, 3.6rem); }
+
+    .about { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .about-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 4rem; align-items: center; }
+    .about p { color: var(--ink-soft); margin-bottom: 1.1rem; font-size: 1.05rem; }
+    .about-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+    .stat { background: var(--paper); border: 1px solid var(--line); padding: 1.4rem 1.2rem; border-radius: 12px; text-align: center; }
+    .stat-num { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 2.8rem; color: var(--rose-deep); line-height: 1; margin-bottom: 0.3rem; font-style: italic; }
+    .stat-label { font-size: 0.78rem; color: var(--ink-soft); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; }
+
+    .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; }
+    .service-card { background: var(--paper); padding: 2rem; border-radius: 14px; border: 1px solid var(--line); transition: transform 0.2s ease, border-color 0.2s; }
+    .service-card:hover { transform: translateY(-4px); border-color: var(--rose); }
+    .service-card h3 { font-size: 1.65rem; margin-bottom: 0.3rem; }
+    .service-card .price { color: var(--rose-deep); font-weight: 700; font-size: 1.3rem; font-style: italic; font-family: 'Cormorant Garamond', serif; margin-bottom: 0.7rem; }
+    .service-card .desc { color: var(--ink-soft); font-size: 0.97rem; }
+    .price-note { text-align: center; color: var(--ink-dim); font-size: 0.85rem; margin-top: 2rem; font-style: italic; }
+
+    .map-wrap { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); }
+    .map-wrap iframe { width: 100%; height: 380px; border: 0; display: block; }
+
+    .cta-band { background: linear-gradient(135deg, var(--rose-deep) 0%, #5e3e3e 100%); color: var(--paper); text-align: center; padding: 5rem 1.5rem; }
+    .cta-band h2 { font-size: clamp(2.4rem, 4.5vw, 3.6rem); margin-bottom: 1rem; color: var(--paper); }
+    .cta-band p { color: rgba(255,255,255,0.85); margin-bottom: 2.5rem; font-size: 1.1rem; }
+    .cta-band .btn-primary { background: var(--paper); color: var(--rose-deep); animation: none; }
+    .cta-band .btn-primary:hover { background: #f3e8e8; transform: translateY(-3px); }
+
+    footer { background: #2b1f23; color: rgba(251, 246, 242, 0.7); padding: 3rem 1.5rem 2.5rem; text-align: center; }
+    footer .footer-logo { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 1.5rem; color: var(--paper); margin-bottom: 1rem; }
+    footer .footer-logo em { color: var(--gold); font-style: italic; font-weight: 400; }
+    footer .footer-links { margin-bottom: 1.5rem; }
+    footer a { color: rgba(251,246,242,0.85); text-decoration: none; margin: 0 0.7rem; font-size: 0.95rem; transition: color 0.15s; }
+    footer a:hover { color: var(--gold); }
+    footer .copyright { font-size: 0.83rem; color: rgba(251,246,242,0.5); }
+
+    @media (max-width: 800px) {
+      .hero { padding: 3rem 1.5rem 4rem; }
+      .hero-inner { grid-template-columns: 1fr; gap: 2.5rem; }
+      .hero-photo { aspect-ratio: 4/3; transform: none; }
+      .about-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+      .nav-call { padding: 0.55rem 1rem; font-size: 0.85rem; }
+      section { padding: 3.5rem 1.5rem; }
+      body { padding-bottom: 5.5rem; }
+    }
+    .sticky-cta { display: none; }
+    @media (max-width: 800px) {
+      .sticky-cta { display: flex; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(251,246,242,0.97); backdrop-filter: blur(10px); border-top: 1px solid var(--line); padding: 0.8rem 1rem; z-index: 99; }
+      .sticky-cta .btn-primary { width: 100%; justify-content: center; animation: none; padding: 1rem; font-size: 1.05rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="nav">
+      <div class="logo">TJ's <em>Country Salon</em></div>
+      <a class="nav-call" href="tel:8154984604">Call to Book</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div>
+        <span class="hero-eyebrow">Somonauk, IL &middot; 22 Years Strong</span>
+        <h1>Hometown haircuts.<br /><em>Honest pricing.</em></h1>
+        <p class="hero-tagline">Cuts, color, and styling for women, men, and kids &mdash; in the same chair your neighbors trust. Call ahead, walk in, or stop by on a Saturday morning. Easy.</p>
+        <div class="hero-ctas">
+          <a class="btn-primary" href="tel:8154984604">Call (815) 498-4604</a>
+          <a class="btn-outline" href="#services">View Services</a>
+        </div>
+        <div class="hero-meta">
+          <div class="hero-meta-item"><strong>645 E Lasalle St</strong> &middot; Somonauk, IL 60552</div>
+          <div class="hero-meta-item"><strong>Open Tue&ndash;Sat</strong></div>
+        </div>
+      </div>
+      <div class="hero-photo">
+        <!-- REPLACE WITH REAL PHOTO -->
+        <img src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=900&q=80" alt="Salon styling chair" />
+      </div>
+    </div>
+  </section>
+
+  <section class="about">
+    <div class="wrap">
+      <div class="about-grid">
+        <div>
+          <div class="section-head" style="text-align:left; margin-bottom:1.5rem;">
+            <span class="eyebrow">About TJ's</span>
+            <h2 style="font-size:clamp(2rem, 4vw, 3rem);">Same chair, <em>same town</em>, for 22 years.</h2>
+          </div>
+          <p>TJ's Country Salon has been the place Somonauk goes for a haircut since 2004. We do the family stuff (wedding updos, prom day, kids' first haircuts) and the every-six-weeks stuff (your usual cut, root touch-up, maybe a beard trim while you're here).</p>
+          <p>Call ahead so you don't wait. Cash and card. Closed Sundays and Mondays.</p>
+        </div>
+        <div class="about-stats">
+          <div class="stat"><div class="stat-num">22</div><div class="stat-label">Years in Somonauk</div></div>
+          <div class="stat"><div class="stat-num">5&#9733;</div><div class="stat-label">Neighbor-rated</div></div>
+          <div class="stat"><div class="stat-num">9&ndash;5</div><div class="stat-label">Tue&ndash;Sat</div></div>
+          <div class="stat"><div class="stat-num">All</div><div class="stat-label">Ages welcome</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="services">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">The menu</span>
+        <h2>Services &amp; <em>pricing</em></h2>
+      </div>
+      <div class="services-grid">
+        <div class="service-card">
+          <h3>Women's Cut</h3>
+          <div class="price">$32 &#10033;</div>
+          <div class="desc">Shampoo, cut, blow-dry. Classic or modern &mdash; tell us the vibe.</div>
+        </div>
+        <div class="service-card">
+          <h3>Men's Cut</h3>
+          <div class="price">$20 &#10033;</div>
+          <div class="desc">Clipper or scissor, with a neck shave.</div>
+        </div>
+        <div class="service-card">
+          <h3>Kids' Cut</h3>
+          <div class="price">$15 &#10033;</div>
+          <div class="desc">Patience, lollipops, and a clean trim.</div>
+        </div>
+        <div class="service-card">
+          <h3>Color Touch-Up</h3>
+          <div class="price">$70 &#10033;</div>
+          <div class="desc">Root retouch with single-process color. Hour and a half.</div>
+        </div>
+        <div class="service-card">
+          <h3>Highlights</h3>
+          <div class="price">$110 &#10033;</div>
+          <div class="desc">Foils, hand-painted. Toner included.</div>
+        </div>
+        <div class="service-card">
+          <h3>Updos &amp; Special Events</h3>
+          <div class="price">$75 &#10033;</div>
+          <div class="desc">Wedding, prom, photoshoot &mdash; trial run on request.</div>
+        </div>
+      </div>
+      <p class="price-note">&#10033; Prices shown are placeholders &mdash; confirm with TJ's before launch.</p>
+    </div>
+  </section>
+
+  <section class="about" style="background: var(--paper);">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Find us</span>
+        <h2>645 E Lasalle St, <em>Somonauk</em></h2>
+      </div>
+      <div class="map-wrap">
+        <iframe src="https://www.google.com/maps?q=645+E+Lasalle+St+Somonauk+IL+60552&output=embed" allowfullscreen loading="lazy"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <h2>Ready for a <em>fresh cut?</em></h2>
+    <p>Call ahead so we'll have the chair ready when you walk in.</p>
+    <a class="btn-primary" href="tel:8154984604">Call (815) 498-4604</a>
+  </section>
+
+  <footer>
+    <div class="footer-logo">TJ's <em>Country Salon</em></div>
+    <div class="footer-links">
+      <a href="tel:8154984604">Call</a> &middot;
+      <a href="https://maps.apple.com/?q=645+E+Lasalle+St+Somonauk+IL+60552">Directions</a>
+    </div>
+    <div class="copyright">&copy; 2026 TJ's Country Salon &middot; 645 E Lasalle St, Somonauk, IL 60552</div>
+  </footer>
+
+  <div class="sticky-cta"><a class="btn-primary" href="tel:8154984604">Call to Book</a></div>
+</body>
+</html>
