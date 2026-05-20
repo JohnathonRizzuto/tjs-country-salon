@@ -353,47 +353,256 @@
     });
   }
 
+  // Strip the "REPLACE WITH REAL PHOTO" placeholder comment adjacent to an
+  // <img> -- runs after every successful image swap (URL or upload) so the
+  // comments don't pile up forever.
+  function stripPlaceholderComment(img) {
+    var prev = img.previousSibling;
+    while (prev && prev.nodeType === 8) {
+      if (/REPLACE WITH REAL PHOTO/i.test(prev.textContent)) {
+        prev.parentNode.removeChild(prev);
+        return;
+      }
+      prev = prev.previousSibling;
+    }
+  }
+
+  // Client-side compression. iPhone photos are commonly 5+ MB at 12MP --
+  // committing them straight to GitHub bloats the repo and slows Vercel
+  // builds. Resize to max 1600px wide, re-encode as JPEG at ~82% quality.
+  // Result is usually 200-800 KB while still looking great on web.
+  function compressImage(file, cb) {
+    var reader = new FileReader();
+    reader.onerror = function () { cb(null, 'Failed to read file'); };
+    reader.onload = function (e) {
+      var imgEl = new Image();
+      imgEl.onerror = function () { cb(null, 'Failed to decode image'); };
+      imgEl.onload = function () {
+        var MAX_W = 1600;
+        var scale = Math.min(1, MAX_W / imgEl.width);
+        var w = Math.round(imgEl.width * scale);
+        var h = Math.round(imgEl.height * scale);
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(imgEl, 0, 0, w, h);
+        try {
+          var dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          cb(dataUrl, null);
+        } catch (err) {
+          cb(null, 'Failed to compress: ' + (err.message || 'unknown'));
+        }
+      };
+      imgEl.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Upload a base64-encoded image to the site's GitHub repo at /img/<name>
+  // via the Contents API. Returns the relative path on success so the
+  // <img src> can be updated to point at the freshly-committed file.
+  // Vercel auto-deploys after the commit lands.
+  function uploadImageToGitHub(token, base64DataUrl, filename, cb) {
+    // base64DataUrl looks like "data:image/jpeg;base64,/9j/4AAQ...". GitHub
+    // wants ONLY the base64 portion, no data: prefix.
+    var commaIdx = base64DataUrl.indexOf(',');
+    var b64 = commaIdx >= 0 ? base64DataUrl.slice(commaIdx + 1) : base64DataUrl;
+    var path = 'img/' + filename;
+    var url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path;
+    fetch(url, {
+      method: 'PUT',
+      headers: ghHeaders(token),
+      body: JSON.stringify({
+        message: 'Upload image via visual editor',
+        content: b64,
+        branch: GH_BRANCH,
+      }),
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.json().catch(function () { return {}; }).then(function (data) {
+          cb(null, 'GitHub upload failed (' + r.status + '): ' + (data.message || 'unknown'));
+        });
+      }
+      return r.json().then(function (data) {
+        cb('/' + path, null);
+      });
+    }).catch(function (err) {
+      cb(null, 'Network error: ' + (err.message || 'unknown'));
+    });
+  }
+
   function promptImageReplace(img) {
     var modal = document.createElement('div');
     modal.id = 'jb-modal';
     modal.innerHTML = [
-      '<div class="jb-modal-card">',
+      '<div class="jb-modal-card" style="max-width:520px">',
       '  <h3>Replace image</h3>',
-      '  <p>Paste a new image URL (Unsplash, Imgur, any direct image link).</p>',
-      '  <input type="url" id="jb-image-url" placeholder="https://..." value="' + (img.src || '').replace(/"/g, '&quot;') + '" />',
+      '  <div id="jb-image-tabs" style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid #2a3358">',
+      '    <button id="jb-tab-upload" class="primary" style="border-radius:0;border:none;border-bottom:2px solid #f59e0b;padding:8px 14px">Upload photo</button>',
+      '    <button id="jb-tab-url" style="border-radius:0;border:none;padding:8px 14px;color:#94a3b8">Paste URL</button>',
+      '  </div>',
+      '  <div id="jb-pane-upload">',
+      '    <p style="margin-bottom:8px">Pick from your camera roll, drag a photo in, or AirDrop one onto this window.</p>',
+      '    <label id="jb-drop" style="display:block;border:2px dashed #475569;border-radius:8px;padding:24px;text-align:center;cursor:pointer;background:#07090f;transition:all 0.15s">',
+      '      <input id="jb-file" type="file" accept="image/*" style="display:none" />',
+      '      <div style="font-size:14px;color:#e7eaf6;margin-bottom:6px">Tap to pick a photo</div>',
+      '      <div style="font-size:11px;color:#94a3b8">or drag & drop here</div>',
+      '    </label>',
+      '    <div id="jb-upload-status" style="margin-top:10px;font-size:12px;color:#94a3b8;min-height:18px"></div>',
+      '  </div>',
+      '  <div id="jb-pane-url" style="display:none">',
+      '    <p>Paste a direct image URL (Unsplash, Imgur, any https://... link).</p>',
+      '    <input type="url" id="jb-image-url" placeholder="https://..." value="' + (img.src || '').replace(/"/g, '&quot;') + '" />',
+      '  </div>',
       '  <div class="jb-modal-actions">',
       '    <button id="jb-image-cancel">Cancel</button>',
-      '    <button id="jb-image-ok" class="primary">Replace</button>',
+      '    <button id="jb-image-ok" class="primary" style="display:none">Replace</button>',
       '  </div>',
       '</div>'
     ].join('');
     document.body.appendChild(modal);
-    var input = document.getElementById('jb-image-url');
-    input.focus();
-    input.select();
-    function close() { document.body.removeChild(modal); }
+
+    var paneUpload = document.getElementById('jb-pane-upload');
+    var paneUrl    = document.getElementById('jb-pane-url');
+    var tabUpload  = document.getElementById('jb-tab-upload');
+    var tabUrl     = document.getElementById('jb-tab-url');
+    var okBtn      = document.getElementById('jb-image-ok');
+    var urlInput   = document.getElementById('jb-image-url');
+    var fileInput  = document.getElementById('jb-file');
+    var dropZone   = document.getElementById('jb-drop');
+    var statusEl   = document.getElementById('jb-upload-status');
+
+    function showTab(which) {
+      if (which === 'upload') {
+        paneUpload.style.display = '';
+        paneUrl.style.display = 'none';
+        tabUpload.classList.add('primary');
+        tabUpload.style.borderBottom = '2px solid #f59e0b';
+        tabUpload.style.color = '';
+        tabUrl.classList.remove('primary');
+        tabUrl.style.borderBottom = 'none';
+        tabUrl.style.color = '#94a3b8';
+        okBtn.style.display = 'none';
+      } else {
+        paneUpload.style.display = 'none';
+        paneUrl.style.display = '';
+        tabUrl.classList.add('primary');
+        tabUrl.style.borderBottom = '2px solid #f59e0b';
+        tabUrl.style.color = '';
+        tabUpload.classList.remove('primary');
+        tabUpload.style.borderBottom = 'none';
+        tabUpload.style.color = '#94a3b8';
+        okBtn.style.display = '';
+        urlInput.focus();
+        urlInput.select();
+      }
+    }
+    tabUpload.onclick = function () { showTab('upload'); };
+    tabUrl.onclick    = function () { showTab('url'); };
+
+    function close() { try { document.body.removeChild(modal); } catch (e) {} }
     document.getElementById('jb-image-cancel').onclick = close;
-    document.getElementById('jb-image-ok').onclick = function () {
-      var url = input.value.trim();
+
+    // URL paste handler (existing flow)
+    okBtn.onclick = function () {
+      var url = urlInput.value.trim();
       if (url) {
         img.src = url;
-        // Strip placeholder comments next to swapped images
-        var prev = img.previousSibling;
-        while (prev && prev.nodeType === 8) {
-          if (/REPLACE WITH REAL PHOTO/i.test(prev.textContent)) {
-            prev.parentNode.removeChild(prev);
-            break;
-          }
-          prev = prev.previousSibling;
-        }
+        stripPlaceholderComment(img);
         toast('Image swapped -- press Save to push it live.');
       }
       close();
     };
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') document.getElementById('jb-image-ok').click();
+    urlInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') okBtn.click();
       if (e.key === 'Escape') close();
     });
+
+    // Upload handler (new). On file selected: compress, upload to GitHub,
+    // update img.src to the new /img/... path, close modal.
+    function handleUploadFile(file) {
+      if (!file) return;
+      if (!/^image\//.test(file.type)) {
+        statusEl.style.color = '#ef4444';
+        statusEl.textContent = 'Not an image file -- pick a photo (.jpg, .png, .heic, etc.).';
+        return;
+      }
+      var token = getStoredToken() || promptForToken();
+      if (!token) {
+        statusEl.style.color = '#ef4444';
+        statusEl.textContent = 'GitHub token required for upload. Click Save first to set one up.';
+        return;
+      }
+      statusEl.style.color = '#94a3b8';
+      statusEl.textContent = 'Compressing photo...';
+      compressImage(file, function (dataUrl, err) {
+        if (err) {
+          statusEl.style.color = '#ef4444';
+          statusEl.textContent = err;
+          return;
+        }
+        statusEl.textContent = 'Uploading to GitHub...';
+        // Build a slug-safe filename. Strip non-ASCII and prepend timestamp
+        // so concurrent uploads from multiple devices don't collide.
+        var ts = Date.now();
+        var origExt = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+        // compressImage always re-encodes as JPEG, so always use .jpg here
+        var filename = 'photo-' + ts + '.jpg';
+        uploadImageToGitHub(token, dataUrl, filename, function (path, err) {
+          if (err) {
+            // 401 = bad token. Clear it and tell user.
+            if (/401/.test(err)) {
+              clearStoredToken();
+              statusEl.style.color = '#ef4444';
+              statusEl.textContent = 'GitHub token rejected. Click Save and re-enter token, then retry.';
+              return;
+            }
+            statusEl.style.color = '#ef4444';
+            statusEl.textContent = err;
+            return;
+          }
+          // Point the <img> at the freshly committed file. Vercel will pick
+          // it up on the next deploy (which fires automatically on the
+          // commit). For the editor preview right now, also set the src
+          // to the data: URL so the user sees the new photo immediately
+          // without waiting for Vercel.
+          img.src = dataUrl;
+          // Set the actual saved-source so when Save fires, the committed
+          // HTML uses the /img/ path, not the bloated data: URL.
+          img.setAttribute('data-jb-saved-src', path);
+          stripPlaceholderComment(img);
+          statusEl.style.color = '#10b981';
+          statusEl.textContent = 'Uploaded! Press Save to update the live site.';
+          toast('Photo uploaded. Click Save to push it live.');
+          // Auto-close after 1.2s so the user can keep working
+          setTimeout(close, 1200);
+        });
+      });
+    }
+    fileInput.addEventListener('change', function (e) {
+      handleUploadFile(e.target.files && e.target.files[0]);
+    });
+    dropZone.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      dropZone.style.borderColor = '#f59e0b';
+      dropZone.style.background = '#1e1b15';
+    });
+    dropZone.addEventListener('dragleave', function (e) {
+      dropZone.style.borderColor = '#475569';
+      dropZone.style.background = '#07090f';
+    });
+    dropZone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      dropZone.style.borderColor = '#475569';
+      dropZone.style.background = '#07090f';
+      var dt = e.dataTransfer;
+      if (dt && dt.files && dt.files[0]) {
+        handleUploadFile(dt.files[0]);
+      }
+    });
+    // ESC closes
+    modal.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
   }
 
   // ---------- exit ------------------------------------------------------
@@ -426,6 +635,15 @@
     });
     clone.querySelectorAll('[data-jb-image]').forEach(function (el) {
       el.removeAttribute('data-jb-image');
+    });
+    // For images that were uploaded via the file picker (not URL paste), the
+    // live img.src is a data: URL for instant preview. Swap to the saved
+    // /img/... path so the committed HTML stays small. The data: URL would
+    // bloat the HTML by megabytes per image.
+    clone.querySelectorAll('img[data-jb-saved-src]').forEach(function (el) {
+      var savedSrc = el.getAttribute('data-jb-saved-src');
+      if (savedSrc) el.setAttribute('src', savedSrc);
+      el.removeAttribute('data-jb-saved-src');
     });
     // Strip the body padding override
     if (clone.querySelector('body')) {
