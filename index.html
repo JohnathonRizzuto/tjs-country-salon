@@ -229,5 +229,375 @@
   </footer>
 
   <div class="sticky-cta"><a class="btn-primary" href="tel:8154984604">Call to Book</a></div>
+<!-- ===========================================================================
+     Visual Editor for Johnathon Builds sites.
+     Injected before </body> by inject-editor.ps1.
+     Activates ONLY when the URL contains ?edit=jb2026. Otherwise inert.
+     Save mechanism uses GitHub Contents API with a token injected at deploy
+     time (look for the {{GITHUB_TOKEN}} placeholder which inject-editor.ps1
+     replaces with the real token).
+     =========================================================================== -->
+<script>
+(function () {
+  // ---------- gate ------------------------------------------------------
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('edit') !== 'jb2026') return;
+
+  // ---------- config -------------------------------------------------
+  // Token lives in THIS BROWSER's localStorage only -- never in the HTML
+  // source. First Save click prompts for it, then it's remembered until you
+  // clear browser data or explicitly reset.
+  var GH_TOKEN_KEY = 'jb-editor-gh-token-v1';
+  function getStoredToken() { try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch (e) { return ''; } }
+  function setStoredToken(t) { try { localStorage.setItem(GH_TOKEN_KEY, t); } catch (e) {} }
+  function clearStoredToken() { try { localStorage.removeItem(GH_TOKEN_KEY); } catch (e) {} }
+
+  var GH_OWNER = 'JohnathonRizzuto';
+  // Derive slug from current host: "newarks-country-kitchen.vercel.app" -> "newarks-country-kitchen"
+  var GH_REPO = location.hostname.split('.')[0].split('-rizzuto')[0];
+  var GH_BRANCH = 'main';
+  var GH_FILE = 'index.html';
+
+  // ---------- styles ----------------------------------------------------
+  var style = document.createElement('style');
+  style.textContent = [
+    '#jb-toolbar { position: fixed; top: 0; left: 0; right: 0; z-index: 99999; background: #0a0e1a; color: #e7eaf6; border-bottom: 1px solid #2a3358; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; font-size: 13px; display: flex; align-items: center; gap: 8px; padding: 8px 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }',
+    '#jb-toolbar .jb-brand { font-weight: 700; color: #fbbf24; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }',
+    '#jb-toolbar .jb-spacer { flex: 1; }',
+    '#jb-toolbar button { background: transparent; border: 1px solid #475569; color: #e7eaf6; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; }',
+    '#jb-toolbar button:hover { background: #1e293b; border-color: #94a3b8; }',
+    '#jb-toolbar button.primary { background: #f59e0b; color: #0a0e1a; border-color: #f59e0b; font-weight: 700; }',
+    '#jb-toolbar button.primary:hover { background: #fbbf24; }',
+    '#jb-toolbar button.primary:disabled { opacity: 0.5; cursor: wait; }',
+    '#jb-toolbar .jb-status { font-size: 11px; color: #94a3b8; min-width: 140px; text-align: right; }',
+    'body { padding-top: 44px !important; }',
+    '[data-jb-editable] { outline: 1px dashed transparent; outline-offset: 2px; cursor: text; transition: outline-color 0.1s; }',
+    '[data-jb-editable]:hover { outline-color: #3b82f6; }',
+    '[data-jb-editable]:focus { outline: 2px solid #3b82f6; outline-offset: 2px; background: rgba(59,130,246,0.06); }',
+    'img[data-jb-image] { cursor: pointer; outline: 1px dashed transparent; transition: outline-color 0.1s; }',
+    'img[data-jb-image]:hover { outline-color: #10b981; outline-offset: 4px; }',
+    '.jb-image-overlay { position: absolute; background: rgba(16,185,129,0.9); color: white; padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 4px; pointer-events: none; opacity: 0; transition: opacity 0.15s; }',
+    'img[data-jb-image]:hover + .jb-image-overlay, .jb-image-wrap:hover .jb-image-overlay { opacity: 1; }',
+    '#jb-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 99998; display: flex; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(6px); }',
+    '#jb-modal .jb-modal-card { background: #0f1320; border: 1px solid #2a3358; border-radius: 12px; padding: 20px; max-width: 500px; width: 100%; color: #e7eaf6; font-family: -apple-system, sans-serif; }',
+    '#jb-modal h3 { margin: 0 0 12px; font-size: 16px; }',
+    '#jb-modal p { margin: 0 0 12px; font-size: 13px; color: #94a3b8; }',
+    '#jb-modal input { width: 100%; padding: 10px; background: #07090f; border: 1px solid #475569; border-radius: 6px; color: #e7eaf6; font-size: 13px; font-family: monospace; box-sizing: border-box; }',
+    '#jb-modal input:focus { outline: none; border-color: #3b82f6; }',
+    '#jb-modal .jb-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }',
+    '#jb-toast { position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 12px 20px; border-radius: 8px; font-family: sans-serif; font-size: 13px; font-weight: 600; z-index: 99997; box-shadow: 0 4px 24px rgba(0,0,0,0.4); opacity: 0; transform: translateY(10px); transition: all 0.2s; }',
+    '#jb-toast.show { opacity: 1; transform: translateY(0); }',
+    '#jb-toast.error { background: #ef4444; }'
+  ].join('\n');
+  document.head.appendChild(style);
+
+  // ---------- toolbar ---------------------------------------------------
+  var toolbar = document.createElement('div');
+  toolbar.id = 'jb-toolbar';
+  toolbar.innerHTML = [
+    '<span class="jb-brand">JR EDITOR</span>',
+    '<button id="jb-help" title="What can I edit?">?</button>',
+    '<span class="jb-spacer"></span>',
+    '<span class="jb-status" id="jb-status">click any text or image to edit</span>',
+    '<button id="jb-exit" title="Exit edit mode">Exit</button>',
+    '<button id="jb-save" class="primary" title="Save changes and redeploy">Save</button>'
+  ].join('');
+  document.body.appendChild(toolbar);
+
+  function status(msg) {
+    document.getElementById('jb-status').textContent = msg;
+  }
+
+  function toast(msg, isError) {
+    var t = document.getElementById('jb-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'jb-toast';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.className = isError ? 'show error' : 'show';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.className = ''; }, 3200);
+  }
+
+  // ---------- text editing ----------------------------------------------
+  var TEXT_SELECTORS = 'h1, h2, h3, h4, h5, h6, p, li, a, span, em, strong, td, blockquote, label, dd, dt';
+  function makeEditable() {
+    var nodes = document.querySelectorAll(TEXT_SELECTORS);
+    nodes.forEach(function (el) {
+      // Skip elements inside the toolbar/modal/script tags
+      if (el.closest('#jb-toolbar, #jb-modal, #jb-toast, script, style')) return;
+      // Skip elements with only child elements (no direct text)
+      var hasText = Array.prototype.some.call(el.childNodes, function (n) {
+        return n.nodeType === 3 && n.textContent.trim().length > 0;
+      });
+      if (!hasText) return;
+      el.setAttribute('data-jb-editable', '');
+      el.setAttribute('contenteditable', 'true');
+      el.addEventListener('focus', function () { status('editing -- click away to commit'); });
+      el.addEventListener('blur', function () { status('changes pending -- press Save to push live'); });
+    });
+  }
+
+  // ---------- image editing ---------------------------------------------
+  function bindImages() {
+    var imgs = document.querySelectorAll('img');
+    imgs.forEach(function (img) {
+      if (img.closest('#jb-toolbar, #jb-modal, #jb-toast')) return;
+      img.setAttribute('data-jb-image', '');
+      img.addEventListener('click', function (e) {
+        if (e.target.contentEditable === 'true') return;
+        promptImageReplace(img);
+      });
+    });
+  }
+
+  function promptImageReplace(img) {
+    var modal = document.createElement('div');
+    modal.id = 'jb-modal';
+    modal.innerHTML = [
+      '<div class="jb-modal-card">',
+      '  <h3>Replace image</h3>',
+      '  <p>Paste a new image URL (Unsplash, Imgur, any direct image link).</p>',
+      '  <input type="url" id="jb-image-url" placeholder="https://..." value="' + (img.src || '').replace(/"/g, '&quot;') + '" />',
+      '  <div class="jb-modal-actions">',
+      '    <button id="jb-image-cancel">Cancel</button>',
+      '    <button id="jb-image-ok" class="primary">Replace</button>',
+      '  </div>',
+      '</div>'
+    ].join('');
+    document.body.appendChild(modal);
+    var input = document.getElementById('jb-image-url');
+    input.focus();
+    input.select();
+    function close() { document.body.removeChild(modal); }
+    document.getElementById('jb-image-cancel').onclick = close;
+    document.getElementById('jb-image-ok').onclick = function () {
+      var url = input.value.trim();
+      if (url) {
+        img.src = url;
+        // Strip placeholder comments next to swapped images
+        var prev = img.previousSibling;
+        while (prev && prev.nodeType === 8) {
+          if (/REPLACE WITH REAL PHOTO/i.test(prev.textContent)) {
+            prev.parentNode.removeChild(prev);
+            break;
+          }
+          prev = prev.previousSibling;
+        }
+        toast('Image swapped -- press Save to push it live.');
+      }
+      close();
+    };
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') document.getElementById('jb-image-ok').click();
+      if (e.key === 'Escape') close();
+    });
+  }
+
+  // ---------- exit ------------------------------------------------------
+  function exitEditMode() {
+    if (!confirm('Exit edit mode? Unsaved changes will be lost unless you Save first.')) return;
+    // Strip ?edit= and reload clean
+    var url = window.location.pathname + window.location.hash;
+    window.location.href = url;
+  }
+
+  // ---------- save ------------------------------------------------------
+  function serializeForSave() {
+    // Clone the document so we can strip edit-mode markers without mutating
+    // the live page.
+    var clone = document.documentElement.cloneNode(true);
+    // Remove our injected elements
+    ['jb-toolbar', 'jb-modal', 'jb-toast'].forEach(function (id) {
+      var el = clone.querySelector('#' + id);
+      if (el) el.parentNode.removeChild(el);
+    });
+    // Remove our injected style block
+    var styles = clone.querySelectorAll('style');
+    styles.forEach(function (s) {
+      if (/#jb-toolbar/.test(s.textContent)) s.parentNode.removeChild(s);
+    });
+    // Strip edit-mode attributes
+    clone.querySelectorAll('[data-jb-editable]').forEach(function (el) {
+      el.removeAttribute('data-jb-editable');
+      el.removeAttribute('contenteditable');
+    });
+    clone.querySelectorAll('[data-jb-image]').forEach(function (el) {
+      el.removeAttribute('data-jb-image');
+    });
+    // Strip the body padding override
+    if (clone.querySelector('body')) {
+      var b = clone.querySelector('body');
+      if (b.style && b.style.paddingTop === '44px') b.style.paddingTop = '';
+    }
+    return '<!DOCTYPE html>\n' + clone.outerHTML;
+  }
+
+  function ghHeaders(token) {
+    return {
+      'Accept': 'application/vnd.github+json',
+      'Authorization': 'Bearer ' + token,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json'
+    };
+  }
+
+  // First-time setup: prompt for the token via a modal, save it, return it.
+  // Returns a Promise that resolves to the token string or '' if cancelled.
+  function promptForToken() {
+    return new Promise(function (resolve) {
+      var modal = document.createElement('div');
+      modal.id = 'jb-modal';
+      modal.innerHTML = [
+        '<div class="jb-modal-card">',
+        '  <h3>One-time setup -- GitHub token</h3>',
+        '  <p>This browser doesn\'t have your GitHub token saved yet. Paste it here once and it\'ll be remembered for next time. The token stays only in this browser -- never in the page source.</p>',
+        '  <p style="font-size:12px;color:#fbbf24"><strong>Where to find it:</strong> github.com/settings/personal-access-tokens (the fine-grained PAT named "johnathon-builds-visual-editor"). Starts with github_pat_</p>',
+        '  <input type="password" id="jb-token-input" placeholder="github_pat_..." />',
+        '  <div class="jb-modal-actions">',
+        '    <button id="jb-token-cancel">Cancel</button>',
+        '    <button id="jb-token-ok" class="primary">Save token</button>',
+        '  </div>',
+        '</div>'
+      ].join('');
+      document.body.appendChild(modal);
+      var input = document.getElementById('jb-token-input');
+      input.focus();
+      function close(val) { document.body.removeChild(modal); resolve(val); }
+      document.getElementById('jb-token-cancel').onclick = function () { close(''); };
+      document.getElementById('jb-token-ok').onclick = function () {
+        var v = input.value.trim();
+        if (!v) { close(''); return; }
+        if (!/^github_pat_/.test(v) && !/^ghp_/.test(v)) {
+          if (!confirm('That doesn\'t look like a GitHub token (no github_pat_ prefix). Save anyway?')) return;
+        }
+        setStoredToken(v);
+        close(v);
+      };
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') document.getElementById('jb-token-ok').click();
+        if (e.key === 'Escape') close('');
+      });
+    });
+  }
+
+  function getToken() {
+    var existing = getStoredToken();
+    if (existing) return Promise.resolve(existing);
+    return promptForToken();
+  }
+
+  function getCurrentSha(token) {
+    var url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_FILE + '?ref=' + GH_BRANCH;
+    return fetch(url, { headers: ghHeaders(token) }).then(function (r) {
+      if (!r.ok) throw new Error('GET sha returned ' + r.status);
+      return r.json();
+    }).then(function (data) { return data.sha; });
+  }
+
+  function pushUpdate(content, sha, token) {
+    var url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_FILE;
+    function toBase64(str) {
+      var bytes = new TextEncoder().encode(str);
+      var bin = '';
+      bytes.forEach(function (b) { bin += String.fromCharCode(b); });
+      return btoa(bin);
+    }
+    var body = JSON.stringify({
+      message: 'Edit via Visual Editor (' + new Date().toISOString() + ')',
+      content: toBase64(content),
+      sha: sha,
+      branch: GH_BRANCH
+    });
+    return fetch(url, { method: 'PUT', headers: ghHeaders(token), body: body }).then(function (r) {
+      if (!r.ok) {
+        return r.text().then(function (t) { throw new Error('PUT returned ' + r.status + ': ' + t); });
+      }
+      return r.json();
+    });
+  }
+
+  function save() {
+    var btn = document.getElementById('jb-save');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    status('checking token...');
+    return getToken().then(function (token) {
+      if (!token) {
+        status('no token -- save cancelled');
+        btn.textContent = 'Save';
+        btn.disabled = false;
+        return;
+      }
+      status('saving to GitHub...');
+      var content = serializeForSave();
+      return getCurrentSha(token)
+        .then(function (sha) { status('committing...'); return pushUpdate(content, sha, token); })
+        .then(function () {
+          status('Vercel deploying...');
+          toast('Saved! Vercel will redeploy in ~15s. Refresh the page to see live changes.');
+          btn.textContent = 'Saved ' + String.fromCharCode(0x2713);
+          setTimeout(function () { btn.textContent = 'Save'; btn.disabled = false; status('click any text or image to edit'); }, 4000);
+        })
+        .catch(function (err) {
+          // If token rejected, clear it so next try prompts again
+          if (/401|403/.test(err.message)) {
+            clearStoredToken();
+            toast('Token rejected (cleared) -- click Save again to enter a new one.', true);
+          } else {
+            toast('Save failed: ' + err.message, true);
+          }
+          status('save failed -- see toast');
+          btn.textContent = 'Save';
+          btn.disabled = false;
+          console.error('jb-editor save failed:', err);
+        });
+    });
+  }
+
+  // ---------- help -----------------------------------------------------
+  function showHelp() {
+    var modal = document.createElement('div');
+    modal.id = 'jb-modal';
+    modal.innerHTML = [
+      '<div class="jb-modal-card" style="max-width:560px">',
+      '  <h3>Visual editor cheatsheet</h3>',
+      '  <p><strong>Edit text:</strong> click any heading, paragraph, link, or list item. Type to edit. Click away to commit.</p>',
+      '  <p><strong>Swap an image:</strong> click any image. A box pops up -- paste a new URL (Unsplash, Imgur, any direct image link) and hit Replace.</p>',
+      '  <p><strong>Save:</strong> click the amber Save button. The whole page gets pushed to GitHub and Vercel redeploys in ~15s. Refresh to see live.</p>',
+      '  <p><strong>Exit:</strong> click Exit to leave edit mode and return to the normal site.</p>',
+      '  <p style="color:#fbbf24"><strong>Tip:</strong> the editor stays inert unless the URL has ?edit=jb2026. Without the key, visitors see the regular page.</p>',
+      '  <div class="jb-modal-actions">',
+      '    <button id="jb-help-ok" class="primary">Got it</button>',
+      '  </div>',
+      '</div>'
+    ].join('');
+    document.body.appendChild(modal);
+    document.getElementById('jb-help-ok').onclick = function () { document.body.removeChild(modal); };
+  }
+
+  // ---------- init ------------------------------------------------------
+  function init() {
+    makeEditable();
+    bindImages();
+    document.getElementById('jb-exit').onclick = exitEditMode;
+    document.getElementById('jb-save').onclick = save;
+    document.getElementById('jb-help').onclick = showHelp;
+    var hasToken = !!getStoredToken();
+    status(hasToken
+      ? 'click any text or image to edit'
+      : 'click text/images to edit -- token prompt appears on first Save');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
 </body>
 </html>
