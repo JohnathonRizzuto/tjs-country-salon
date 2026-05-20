@@ -490,8 +490,16 @@
   }
 
   function getCurrentSha(token) {
-    var url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_FILE + '?ref=' + GH_BRANCH;
-    return fetch(url, { headers: ghHeaders(token) }).then(function (r) {
+    // Bust browser + CDN caches so we always get the truly-current SHA. The
+    // _t query param defeats URL-keyed caches; cache: 'no-store' + the
+    // Cache-Control header defeat HTTP caches. Without this, the second
+    // consecutive save from the same browser session gets a stale SHA and
+    // GitHub rejects with 409.
+    var url = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_FILE + '?ref=' + GH_BRANCH + '&_t=' + Date.now();
+    var headers = ghHeaders(token);
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    headers['Pragma'] = 'no-cache';
+    return fetch(url, { headers: headers, cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('GET sha returned ' + r.status);
       return r.json();
     }).then(function (data) { return data.sha; });
@@ -533,8 +541,24 @@
       }
       status('saving to GitHub...');
       var content = serializeForSave();
-      return getCurrentSha(token)
-        .then(function (sha) { status('committing...'); return pushUpdate(content, sha, token); })
+
+      // Wrap the save in a one-shot 409-retry. If GitHub says the SHA is
+      // stale (typically a caching artifact), fetch a fresh SHA and try once
+      // more. Most second-save-in-same-session failures resolve on retry.
+      function attemptSave(retriesLeft) {
+        return getCurrentSha(token)
+          .then(function (sha) { status('committing...'); return pushUpdate(content, sha, token); })
+          .catch(function (err) {
+            if (retriesLeft > 0 && /409/.test(err.message)) {
+              status('SHA conflict -- retrying with fresh SHA...');
+              // Brief pause so GitHub's read replica catches up
+              return new Promise(function (r) { setTimeout(r, 600); }).then(function () { return attemptSave(retriesLeft - 1); });
+            }
+            throw err;
+          });
+      }
+
+      return attemptSave(1)
         .then(function () {
           status('Vercel deploying...');
           toast('Saved! Vercel will redeploy in ~15s. Refresh the page to see live changes.');
