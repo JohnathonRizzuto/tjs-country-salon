@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tjs-country-salon.vercel.app/sitemap.xml
